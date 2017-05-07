@@ -10,10 +10,10 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 start(EventName, DateTime) ->
-  spawn(?MODULE, init, [self(), EventName, DateTime]).
+  spawn(fun() -> init(self(), EventName, DateTime) end).
 
 start_link(EventName, DateTime) ->
-  spawn_link(?MODULE, init, [self(), EventName, DateTime]).
+  spawn_link(fun() -> init(self(), EventName, DateTime) end).
 
 cancel(Pid) ->
   Ref = erlang:monitor(process, Pid),
