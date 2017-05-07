@@ -13,6 +13,7 @@ start_link(EventName, DateTime) ->
   spawn_link(?MODULE, init, [self(), EventName, DateTime]).
 
 init(Server, EventName, DateTime) ->
+  io:format("Started ~p event process, timeout: ~w~n", [EventName, DateTime]),
   loop(#state{server=Server, name=EventName, to_go=time_to_go(DateTime)}).
 
 %% Because Erlang is limited to about 49 days (49*24*60*60*1000) in
@@ -28,6 +29,7 @@ loop(S = #state{server=Server, to_go=[T|Next]}) ->
     after T * 1000 ->
       if
         Next =:= [] ->
+          io:format("~p event process timeout~n", [S#state.name]),
           Server ! {done, S#state.name};
         Next =/= [] ->
           loop(S#state{to_go=Next})
@@ -45,7 +47,6 @@ time_to_go(Timeout={{_,_,_}, {_,_,_}}) ->
       0
     end,
   normalize(Secs).
-
 
 cancel(Pid) ->
   Ref = erlang:monitor(process, Pid),

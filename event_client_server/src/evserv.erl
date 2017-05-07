@@ -22,11 +22,11 @@
 }).
 
 start() ->
-  register(?MODULE, Pid = spawn(?MODULE, fun init/0, [])),
+  register(?MODULE, Pid = spawn(fun() -> init() end)),
   Pid.
 
 start_link() ->
-  register(?MODULE, Pid = spawn_link(?MODULE, fun init/0, [])),
+  register(?MODULE, Pid = spawn_link(fun() -> init() end)),
   Pid.
 
 terminate() ->
@@ -40,13 +40,13 @@ init()->
 
 loop(S = #state{}) ->
   receive
-    {Pid, Ref, {subscribe, Client}} ->
+    {Pid, MsgRef, {subscribe, Client}} ->
       Ref = erlang:monitor(process, Pid),
       NewClients = orddict:store(Ref, Client, S#state.clients),
-      Pid ! {Ref, ok},
+      Pid ! {MsgRef, ok},
       loop(S#state{clients=NewClients});
 
-    {Pid, Ref, {add, Name, Description, Timeout}} ->
+    {Pid, MsgRef, {add, Name, Description, Timeout}} ->
       case valid_datetime(Timeout) of
         true ->
           EventPid = event:start_link(Name, Timeout),
@@ -56,12 +56,13 @@ loop(S = #state{}) ->
             pid = EventPid,
             timeout = Timeout
           }, S#state.events),
-          Pid ! {Ref, ok},
+          Pid ! {MsgRef, ok},
           loop(S#state{events=NewEvents});
         false ->
-          Pid ! {Ref, {error, bad_timeout}},
+          Pid ! {MsgRef, {error, bad_timeout}},
           loop(S)
       end;
+
 
     {Pid, Ref, {cancel, Name}} ->
       Events = case orddict:find(Name, S#state.events) of
@@ -77,6 +78,7 @@ loop(S = #state{}) ->
     {done, Name} ->
       case orddict:find(Name, S#state.events) of
         {ok, E} ->
+          io:format("Subscriber found, sending ~w~n", [E#events.name]),
           send_to_clients({done, E#events.name, E#events.description}, S#state.clients),
           NewEvents = orddict:erase(Name, S#state.events),
           loop(S#state{events=NewEvents});
@@ -123,7 +125,7 @@ subscribe(Pid) ->
   receive
     {Ref, ok} ->
       {ok, Ref};
-    {'DOWN', Ref, process, _Pid, Reason} ->
+    {'DOWN', Ref, process, _, Reason} ->
       {error, Reason}
   after 5000 ->
     {error, timeout}
