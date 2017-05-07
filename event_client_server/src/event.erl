@@ -1,5 +1,5 @@
 -module(event).
--compile(export_all).
+-export([start/2, start_link/2, cancel/1]).
 -record(state, {
   server,
   name="",
@@ -14,10 +14,6 @@ start(EventName, DateTime) ->
 
 start_link(EventName, DateTime) ->
   spawn_link(?MODULE, init, [self(), EventName, DateTime]).
-
-init(Server, EventName, DateTime) ->
-  io:format("Started ~p event process, timeout: ~w~n", [EventName, DateTime]),
-  loop(#state{server=Server, name=EventName, to_go=time_to_go(DateTime)}).
 
 cancel(Pid) ->
   Ref = erlang:monitor(process, Pid),
@@ -36,6 +32,10 @@ cancel(Pid) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%Implementaion%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+init(Server, EventName, DateTime) ->
+  io:format("Started ~p event process, timeout: ~w~n", [EventName, DateTime]),
+  loop(#state{server=Server, name=EventName, to_go=time_to_go(DateTime)}).
 
 loop(S = #state{server=Server, to_go=[T|Next]}) ->
   receive
