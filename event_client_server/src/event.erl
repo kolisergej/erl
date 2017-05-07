@@ -6,6 +6,9 @@
   to_go=0
 }).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%Interfaces%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 start(EventName, DateTime) ->
   spawn(?MODULE, init, [self(), EventName, DateTime]).
 
@@ -16,11 +19,23 @@ init(Server, EventName, DateTime) ->
   io:format("Started ~p event process, timeout: ~w~n", [EventName, DateTime]),
   loop(#state{server=Server, name=EventName, to_go=time_to_go(DateTime)}).
 
-%% Because Erlang is limited to about 49 days (49*24*60*60*1000) in
-%% milliseconds, the following function is used
-normalize(N) ->
-  Limit = 49 * 24 * 60 * 60,
-  [N rem Limit | lists:duplicate(N div Limit, Limit)].
+cancel(Pid) ->
+  Ref = erlang:monitor(process, Pid),
+  Pid ! {self(), Ref, cancel},
+  receive
+    {Ref, ok} ->
+      erlang:demonitor(Ref, [flush]),
+      ok;
+    {'DOWN', Ref, process, _Reason} ->
+      ok
+  end.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%Implementaion%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 loop(S = #state{server=Server, to_go=[T|Next]}) ->
   receive
@@ -36,6 +51,12 @@ loop(S = #state{server=Server, to_go=[T|Next]}) ->
       end
   end.
 
+%% Because Erlang is limited to about 49 days (49*24*60*60*1000) in
+%% milliseconds, the following function is used
+normalize(N) ->
+  Limit = 49 * 24 * 60 * 60,
+  [N rem Limit | lists:duplicate(N div Limit, Limit)].
+
 time_to_go(Timeout={{_,_,_}, {_,_,_}}) ->
   Now = calendar:local_time(),
   ToGo = calendar:datetime_to_gregorian_seconds(Timeout) -
@@ -48,13 +69,5 @@ time_to_go(Timeout={{_,_,_}, {_,_,_}}) ->
     end,
   normalize(Secs).
 
-cancel(Pid) ->
-  Ref = erlang:monitor(process, Pid),
-  Pid ! {self(), Ref, cancel},
-  receive
-    {Ref, ok} ->
-      erlang:demonitor(Ref, [flush]),
-      ok;
-    {'DOWN', Ref, process, _Reason} ->
-      ok
-  end.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
