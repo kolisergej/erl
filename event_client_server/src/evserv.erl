@@ -78,7 +78,7 @@ loop(S = #state{}) ->
     {done, Name} ->
       case orddict:find(Name, S#state.events) of
         {ok, E} ->
-          io:format("Subscriber found, sending ~w~n", [E#events.name]),
+          io:format("Subscriber found, sending ~p~n", [E#events.name]),
           send_to_clients({done, E#events.name, E#events.description}, S#state.clients),
           NewEvents = orddict:erase(Name, S#state.events),
           loop(S#state{events=NewEvents});
